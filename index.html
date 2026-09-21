@@ -22,7 +22,10 @@
     <section class="card">
       <h2>1. Choisis les listes</h2>
       <div class="grid" id="listChoices"></div>
-      <h2 style="margin-top:28px">2. Choisis la longueur</h2>
+      <h2 style="margin-top:28px">2. Choisis les catégories</h2>
+      <div class="grid" id="categoryChoices"></div>
+      <div class="actions" style="margin-top:12px"><button class="secondary" id="allCategoriesBtn">Tout sélectionner</button></div>
+      <h2 style="margin-top:28px">3. Choisis la longueur</h2>
       <div class="count-row" id="countChoices"></div>
       <div class="notice hidden" id="poolNotice"></div>
       <div class="actions"><button class="primary" id="startBtn">Commencer la dictée</button><span id="poolSummary" class="hint"></span></div>
@@ -39,6 +42,7 @@
           <div class="form-grid">
             <label><span>Liste</span><select id="entryList"></select></label>
             <label><span>Mot à écrire</span><input id="entryWord" type="text" placeholder="merveilleuse"></label>
+            <label><span>Catégorie</span><select id="entryCategory"><option value="noun">Nom</option><option value="adjective">Adjectif</option><option value="adverb">Adverbe</option><option value="other">Autre mot</option></select></label>
             <label class="full"><span>Information prononcée après le mot</span><input id="entryGrammar" type="text" placeholder="Adjectif, féminin singulier."></label>
           </div>
           <div class="actions"><button class="primary" id="addEntryBtn">Ajouter le mot</button></div>
@@ -82,33 +86,41 @@
   const STORAGE_KEY='dicteeSereineDataV1', SETTINGS_KEY='dicteeSereineSettingsV1';
   const qs=s=>document.querySelector(s), esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
-  const item=(word,grammar)=>({id:uid(),word,grammar});
-  function nounForms(s,p,g,extraPlural){const G=g==='f'?'féminin':'masculin';const a=[item(s,`Nom ${G} singulier.`),item(p,`Nom ${G} pluriel.`)];if(extraPlural)a.push(item(extraPlural.word,extraPlural.grammar));return a}
-  function adjectiveForms(mS,fS,mP,fP){return [item(mS,'Adjectif, masculin singulier.'),item(fS,'Adjectif, féminin singulier.'),item(mP,'Adjectif, masculin pluriel.'),item(fP,'Adjectif, féminin pluriel.') ]}
-  function verbForms(inf,forms){const persons=['première personne du singulier','deuxième personne du singulier','troisième personne du singulier','première personne du pluriel','deuxième personne du pluriel','troisième personne du pluriel'];return forms.map((w,i)=>item(w,`Verbe ${inf}, ${persons[i]}, présent de l’indicatif.`))}
+  const item=(word,grammar,category='other')=>({id:uid(),word,grammar,category});
+  function nounForms(s,p,g,extraPlural){const G=g==='f'?'féminin':'masculin';const a=[item(s,`Nom ${G} singulier.`,'noun'),item(p,`Nom ${G} pluriel.`,'noun')];if(extraPlural)a.push(item(extraPlural.word,extraPlural.grammar,'noun'));return a}
+  function adjectiveForms(mS,fS,mP,fP){return [item(mS,'Adjectif, masculin singulier.','adjective'),item(fS,'Adjectif, féminin singulier.','adjective'),item(mP,'Adjectif, masculin pluriel.','adjective'),item(fP,'Adjectif, féminin pluriel.','adjective') ]}
   function defaults(){
     let old=[];
     [['exotique','exotique','exotiques','exotiques'],['épais','épaisse','épais','épaisses'],['féroce','féroce','féroces','féroces'],['naïf','naïve','naïfs','naïves'],['tropical','tropicale','tropicaux','tropicales'],['coloré','colorée','colorés','colorées'],['magnifique','magnifique','magnifiques','magnifiques']].forEach(x=>old.push(...adjectiveForms(...x)));
     [['forêt','forêts','f'],['tonnerre','tonnerres','m'],['vent','vents','m'],['jungle','jungles','f'],['arbre','arbres','m'],['plante','plantes','f'],['tableau','tableaux','m']].forEach(x=>old.push(...nounForms(...x)));
-    old.push(item('ciel','Nom masculin singulier.'),item('cieux','Nom masculin pluriel, pluriel irrégulier de ciel, au sens général.'),item('ciels','Nom masculin pluriel, pluriel régulier de ciel, employé notamment pour une peinture ou différents aspects du ciel.'));
-    old.push(...nounForms('herbe','herbes','f'),item('peintre','Nom masculin singulier.'),item('peintre','Nom féminin singulier.'),item('peintres','Nom masculin pluriel.'),item('peintres','Nom féminin pluriel.'),...nounForms('peinture','peintures','f'));
+    old.push(item('ciel','Nom masculin singulier.','noun'),item('cieux','Nom masculin pluriel, pluriel irrégulier de ciel, au sens général.','noun'),item('ciels','Nom masculin pluriel, pluriel régulier de ciel, employé notamment pour une peinture ou différents aspects du ciel.','noun'));
+    old.push(...nounForms('herbe','herbes','f'),item('peintre','Nom masculin singulier.','noun'),item('peintre','Nom féminin singulier.','noun'),item('peintres','Nom masculin pluriel.','noun'),item('peintres','Nom féminin pluriel.','noun'),...nounForms('peinture','peintures','f'));
+    [['dans','Mot invariable, préposition.','other'],['avec','Mot invariable, préposition.','other'],['mais','Mot invariable, conjonction.','other'],['maintenant','Mot invariable, adverbe.','adverb'],['beaucoup','Mot invariable, adverbe.','adverb'],["aujourd’hui",'Mot invariable, adverbe.','adverb'],['parce que','Locution conjonctive.','other'],['toujours','Mot invariable, adverbe.','adverb'],['pour','Mot invariable, préposition.','other'],['et','Mot invariable, conjonction.','other']].forEach(x=>old.push(item(...x)));
     let w1=[];
     [['montagne','montagnes','f'],['vallée','vallées','f'],['cygne','cygnes','m'],['grenouille','grenouilles','f'],['habitant','habitants','m'],['extrémité','extrémités','f'],['hameçon','hameçons','m'],['commérage','commérages','m'],['colère','colères','f'],['cime','cimes','f'],['convoi','convois','m'],['trio','trios','m'],['eau','eaux','f'],['ruse','ruses','f']].forEach(x=>w1.push(...nounForms(...x)));
     [['limpide','limpide','limpides','limpides'],['verdoyant','verdoyante','verdoyants','verdoyantes'],['vertigineux','vertigineuse','vertigineux','vertigineuses'],['inaperçu','inaperçue','inaperçus','inaperçues'],['immaculé','immaculée','immaculés','immaculées'],['bavard','bavarde','bavards','bavardes'],['fâché','fâchée','fâchés','fâchées'],['volant','volante','volants','volantes']].forEach(x=>w1.push(...adjectiveForms(...x)));
-    [['pêcher',['pêche','pêches','pêche','pêchons','pêchez','pêchent']],['critiquer',['critique','critiques','critique','critiquons','critiquez','critiquent']],['survoler',['survole','survoles','survole','survolons','survolez','survolent']],['traverser',['traverse','traverses','traverse','traversons','traversez','traversent']],['gesticuler',['gesticule','gesticules','gesticule','gesticulons','gesticulez','gesticulent']],['coasser',['coasse','coasses','coasse','coassons','coassez','coassent']],['réfléchir',['réfléchis','réfléchis','réfléchit','réfléchissons','réfléchissez','réfléchissent']]].forEach(x=>w1.push(...verbForms(x[0],x[1])));
-    w1.push(item('partir','Verbe à l’infinitif.'));
-    return {lists:[{id:'last-year',name:'L’année dernière',items:old},{id:'new-year-week-1',name:'Nouvelle année – Semaine 1',items:w1}]};
+    return {version:2,lists:[{id:'last-year',name:'Vocabulaire 3',items:old},{id:'new-year-week-1',name:'Vocabulaire 4',items:w1}]};
   }
-  function load(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY));if(x&&Array.isArray(x.lists))return x}catch(e){}const x=defaults();save(x);return x}
+  function inferCategory(x){const g=(x.grammar||'').toLowerCase();if(g.startsWith('nom '))return 'noun';if(g.startsWith('adjectif'))return 'adjective';if(g.includes('adverbe'))return 'adverb';return 'other'}
+  function migrate(x){
+    x.lists.forEach(l=>l.items=(l.items||[]).filter(i=>!/^verbe\b/i.test(i.grammar||'')).map(i=>({...i,category:i.category||inferCategory(i)})));
+    const old=lById(x,'last-year');if(old){old.name='Vocabulaire 3';const additions=defaults().lists[0].items.filter(i=>['dans','avec','mais','maintenant','beaucoup','aujourd’hui','parce que','toujours','pour','et'].includes(i.word));additions.forEach(a=>{if(!old.items.some(i=>i.word===a.word&&i.grammar===a.grammar))old.items.push(a)})}
+    const w1=lById(x,'new-year-week-1');if(w1)w1.name='Vocabulaire 4';x.version=2;return x
+  }
+  function lById(x,id){return x.lists.find(l=>l.id===id)}
+  function load(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY));if(x&&Array.isArray(x.lists)){const y=migrate(x);localStorage.setItem(STORAGE_KEY,JSON.stringify(y));return y}}catch(e){}const x=defaults();save(x);return x}
   function save(x=data){localStorage.setItem(STORAGE_KEY,JSON.stringify(x))}
   let data=load(), selectedCount=15, voices=[], session=[], index=0, phase='idle', timerId=null, deadline=0, remaining=0, paused=false, speaking=false, speechToken=0;
-  const countOptions=[15,20,25,30,40,50];
+  const countOptions=[15,20,25,30,40,50], categories=[['noun','Noms'],['adjective','Adjectifs'],['adverb','Adverbes'],['other','Autres mots']];
   function toast(msg){const d=document.createElement('div');d.className='toast';d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
   function selectedListIds(){return [...document.querySelectorAll('.list-check:checked')].map(x=>x.value)}
-  function pool(){const ids=selectedListIds();return data.lists.filter(l=>ids.includes(l.id)).flatMap(l=>l.items)}
+  function selectedCategories(){return [...document.querySelectorAll('.category-check:checked')].map(x=>x.value)}
+  function pool(){const ids=selectedListIds(),cats=selectedCategories();return data.lists.filter(l=>ids.includes(l.id)).flatMap(l=>l.items).filter(i=>cats.includes(i.category||inferCategory(i)))}
   function render(){
     const choices=qs('#listChoices');choices.innerHTML=data.lists.map((l,i)=>`<label class="list-choice"><input class="list-check" type="checkbox" value="${esc(l.id)}" ${i<2?'checked':''}><span><strong>${esc(l.name)}</strong><small>${l.items.length} entrées</small></span></label>`).join('');
     document.querySelectorAll('.list-check').forEach(x=>x.addEventListener('change',updatePool));
+    qs('#categoryChoices').innerHTML=categories.map(([id,name])=>`<label class="list-choice"><input class="category-check" type="checkbox" value="${id}" checked><span><strong>${name}</strong><small>${data.lists.flatMap(l=>l.items).filter(i=>(i.category||inferCategory(i))===id).length} entrées</small></span></label>`).join('');
+    document.querySelectorAll('.category-check').forEach(x=>x.addEventListener('change',updatePool));
     const options=data.lists.map(l=>`<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('');qs('#entryList').innerHTML=options;qs('#inspectList').innerHTML=options;
     renderCounts();renderWordTable();updatePool();
   }
@@ -131,11 +143,12 @@
   function finish(){clearTimer();stopSpeech();phase='done';qs('#progressText').textContent=`${session.length} mots terminés`;qs('#progressBar').style.width='100%';qs('#phaseText').classList.add('hidden');qs('#timer').classList.add('hidden');qs('#practiceHint').classList.add('hidden');qs('#practiceControls').classList.add('hidden');qs('#results').classList.remove('hidden');qs('#answerList').innerHTML=session.map(x=>`<li><strong>${esc(x.word)}</strong> — ${esc(x.grammar)}</li>`).join('');const done=item('La dictée est terminée','');speak(done)}
   function home(){clearTimer();stopSpeech();qs('#practice').style.display='none';qs('#home').classList.remove('hidden');qs('#phaseText').classList.remove('hidden');qs('#timer').classList.remove('hidden');qs('#practiceHint').classList.remove('hidden');render()}
   qs('#startBtn').onclick=start;qs('#pauseBtn').onclick=togglePause;qs('#repeatBtn').onclick=manualRepeat;qs('#nextBtn').onclick=next;qs('#finishBtn').onclick=home;qs('#exitBtn').onclick=()=>{if(confirm('Quitter cette dictée ?'))home()};
+  qs('#allCategoriesBtn').onclick=()=>{document.querySelectorAll('.category-check').forEach(x=>x.checked=true);updatePool()};
   qs('#addListBtn').onclick=()=>{const name=qs('#newListName').value.trim();if(!name)return toast('Écris le nom de la liste.');data.lists.push({id:uid(),name,items:[]});qs('#newListName').value='';save();render();toast('Liste créée.')};
-  qs('#addEntryBtn').onclick=()=>{const word=qs('#entryWord').value.trim(),grammar=qs('#entryGrammar').value.trim(),l=data.lists.find(x=>x.id===qs('#entryList').value);if(!word||!grammar||!l)return toast('Complète le mot et son information grammaticale.');l.items.push(item(word,grammar));qs('#entryWord').value='';qs('#entryGrammar').value='';save();render();toast('Mot ajouté.')};
+  qs('#addEntryBtn').onclick=()=>{const word=qs('#entryWord').value.trim(),grammar=qs('#entryGrammar').value.trim(),category=qs('#entryCategory').value,l=data.lists.find(x=>x.id===qs('#entryList').value);if(!word||!grammar||!l)return toast('Complète le mot et son information grammaticale.');l.items.push(item(word,grammar,category));qs('#entryWord').value='';qs('#entryGrammar').value='';save();render();toast('Mot ajouté.')};
   qs('#inspectList').onchange=renderWordTable;
   qs('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dictee-sereine-sauvegarde.json';a.click();URL.revokeObjectURL(a.href)};
-  qs('#importFile').onchange=async e=>{try{const x=JSON.parse(await e.target.files[0].text());if(!x||!Array.isArray(x.lists))throw Error();data=x;save();render();toast('Sauvegarde importée.')}catch(err){alert('Ce fichier de sauvegarde n’est pas valide.')}e.target.value=''};
+  qs('#importFile').onchange=async e=>{try{const x=JSON.parse(await e.target.files[0].text());if(!x||!Array.isArray(x.lists))throw Error();data=migrate(x);save();render();toast('Sauvegarde importée.')}catch(err){alert('Ce fichier de sauvegarde n’est pas valide.')}e.target.value=''};
   qs('#resetBtn').onclick=()=>{if(confirm('Remplacer toutes les listes actuelles par les listes initiales ? Télécharge d’abord une sauvegarde si nécessaire.')){data=defaults();save();render();toast('Listes initiales restaurées.')}};
   qs('#testVoice').onclick=()=>speak(item('Bonjour Sofia','Voici la voix choisie pour ta dictée.'));
   function saveVoice(){const v=voices[+qs('#voiceSelect').value];localStorage.setItem(SETTINGS_KEY,JSON.stringify({voiceName:v&&v.name,rate:qs('#rateSelect').value}))}qs('#voiceSelect').onchange=saveVoice;qs('#rateSelect').onchange=saveVoice;
